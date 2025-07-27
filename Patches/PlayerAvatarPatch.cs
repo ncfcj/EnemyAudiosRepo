@@ -20,7 +20,7 @@ internal class PlayerAvatarPatch
         if (enemyAudioBehaviour is null)
         {
             enemyAudioBehaviour = __instance.gameObject.AddComponent<EnemyAudioBehaviour>();
-            _logger.LogInfo("[EnemyAudios] Added EnemyAudioBehaviour component to PlayerAvatar: " + __instance.name);
+            _logger.LogInfo("[EnemyAudios] Added EnemyAudioBehaviour component to PlayerAvatar: " + __instance.playerName);
         }
         
         var component = __instance.GetComponent<PhotonView>();
@@ -30,6 +30,6 @@ internal class PlayerAvatarPatch
         
         PlayerFinder.EnemyAudioBehaviour = enemyAudioBehaviour;
         
-        _logger.LogInfo("[EnemyAudios] Set EnemyAudioBehaviour for local PlayerAvatar: " + __instance.name);
+        _logger.LogInfo("[EnemyAudios] Set EnemyAudioBehaviour for local PlayerAvatar: " + __instance.playerName);
     }
 }
