@@ -1,4 +1,4 @@
-namespace EnemyAudios.Structs;
+namespace EnemyAudios.Models;
 
 public struct QueuedAudio(byte[] data, string extension)
 {
