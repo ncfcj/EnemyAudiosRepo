@@ -9,7 +9,7 @@ namespace EnemyAudios.Patches;
 [HarmonyPatch(typeof(EnemyDirector))]
 internal class EnemyDirectorStartPatch
 {
-    private static readonly ManualLogSource _logger = Logger.CreateLogSource("EnemyAudio");
+    private static readonly ManualLogSource _logger = Logger.CreateLogSource("EnemyAudios");
     
     private static HashSet<string> FilterEnemies { get; set; } = [];
     private static bool _setupComplete = false;
@@ -18,7 +18,7 @@ internal class EnemyDirectorStartPatch
     public static void Initialize(ConfigFile config)
     {
         _configFile = config;
-        _logger.LogInfo("[EnemyAudio] EnemyDirectorStartPatch initialized with ConfigFile.");
+        _logger.LogInfo("[EnemyAudios] EnemyDirectorStartPatch initialized with ConfigFile.");
     }
     
     [HarmonyPatch("Start")]
@@ -48,12 +48,12 @@ internal class EnemyDirectorStartPatch
     
     private static void SetupEnemyConfig()
     {
-        _logger.LogInfo("[EnemyAudio] Setting up enemy config...");
+        _logger.LogInfo("[EnemyAudios] Setting up enemy config...");
         foreach (var filterEnemy in FilterEnemies)
         {
             filterEnemy.Replace("Enemy - ", "");
             BasePlugin.EnemyConfigEntries[filterEnemy] = _configFile.Bind("Enemies", filterEnemy, true, $"Enables/disables ability for {filterEnemy} to reproduce audios.");
-            _logger.LogInfo("[EnemyAudio] Added config entry for enemy: " + filterEnemy);
+            _logger.LogInfo("[EnemyAudios] Added config entry for enemy: " + filterEnemy);
         }
     }
 }

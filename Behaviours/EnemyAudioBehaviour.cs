@@ -3,14 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using BepInEx.Logging;
 using EnemyAudios.Extensions;
-using EnemyAudios.Models;
+using EnemyAudios.Structs;
 using Photon.Pun;
 using UnityEngine;
 using UnityEngine.Networking;
 using Random = UnityEngine.Random;
-using Newtonsoft.Json;
 
 namespace EnemyAudios.Behaviours;
 
@@ -18,17 +18,15 @@ public class EnemyAudioBehaviour : MonoBehaviour
 {
     public PhotonView? photonView;
     
-    private string? _audioFolderPath;
+    private string? _audiosFolderPath;
     private readonly List<byte[]> _receivedChunks = [];
     private int _expectedChunkCount;
     private readonly Queue<QueuedAudio> _audioQueue = new();
     private bool _isSendingAudio = false;
     private float _lastAudioDuration = 0f;
     private readonly Queue<string> _recentlyPlayed = new();
-    private const string _audioFolderName = "EnemyAudio";
-    private const string _jsonFileName = "audioFiles.json";
     
-    private static readonly string[] SupportedAudioFormats = ["*.wav", "*.mp3"];
+    private static readonly string[] SupportedAudioFormats = ["*.wav", "*.mp3", "*.ogg"];
     private const int ChunkSize = 8192;
     
     private float DelayBetweenReproductions = BasePlugin.DelayBetweenReproductions!.Value;
@@ -44,7 +42,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
     #region Setup and Preparation
     private IEnumerator StartEnemyBehavior()
     {
-        CreateFoldersAndJsonFiles();
+        CreateEnemyAudiosFolder();
         
         while (true)
         {
@@ -60,11 +58,11 @@ public class EnemyAudioBehaviour : MonoBehaviour
     #region Audio Playing, Sending and Receiving
     private void PlayRandomAudio()
     {
-        var audioFiles = GetAudioFilesFromJsonList();
+        var audioFiles = GetAudioFiles();
         
         if (audioFiles.Length == 0)
         {
-            Logger.LogError("[EnemyAudio] No audio files with the names and extensions in the json file were found in the EnemyAudio folder.");
+            Logger.LogError("[EnemyAudios] No audio files found in the EnemyAudios folder.");
             return;
         }
         
@@ -82,7 +80,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
         
         var audioName = Path.GetFileNameWithoutExtension(selectedAudioFile);
         
-        Logger.LogInfo($"[EnemyAudio] Playing audio: {audioName}");
+        Logger.LogInfo($"[EnemyAudios] Playing audio: {audioName}");
         
         _recentlyPlayed.Enqueue(selectedAudioFile);
         
@@ -102,14 +100,14 @@ public class EnemyAudioBehaviour : MonoBehaviour
         {
             if (!PhotonNetwork.IsConnectedAndReady || photonView is null)
             {
-                Logger.LogWarning("[EnemyAudio] Cannot send audio.");
+                Logger.LogWarning("[EnemyAudios] Cannot send audio.");
                 return;
             }
             
             photonView.RPC("ReceiveAudio", RpcTarget.All, chunk, index, chunkAudioData.Count, fileExtension);
         }
         
-        Logger.LogInfo("[EnemyAudio] All audio chunks sent.");
+        Logger.LogInfo("[EnemyAudios] All audio chunks sent.");
         StartCoroutine(WaitForAudioToFinish());
     }
     
@@ -133,7 +131,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
         if (_receivedChunks.Count < _expectedChunkCount || !_receivedChunks.All<byte[]>((Func<byte[], bool>) (c => c != null)))
             return;
         
-        Logger.LogInfo($"[EnemyAudio] All chunks received, Playing audio ...");
+        Logger.LogInfo($"[EnemyAudios] All chunks received, Playing audio ...");
         var combinedAudioChunks = CombineChunks(_receivedChunks);
         StartCoroutine(PlayReceivedAudioCoroutine(combinedAudioChunks, fileExtension));
         
@@ -154,7 +152,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
 
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Logger.LogError("[EnemyAudio] Failed to get the audio file: " + www.error);
+                Logger.LogError("[EnemyAudios] Falha ao carregar o áudio: " + www.error);
                 yield break;
             }
             
@@ -177,7 +175,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
             }
         }
         
-        Logger.LogInfo("[EnemyAudio] Audio played successfully.");
+        Logger.LogInfo("[EnemyAudios] Audio played successfully.");
     }
     
     private void TryProcessNextAudio()
@@ -246,104 +244,33 @@ public class EnemyAudioBehaviour : MonoBehaviour
     #endregion
     
     #region Audio Directory Handling
-    private void CreateEnemyAudioFolder()
+    private void CreateEnemyAudiosFolder()
     {
-        _audioFolderPath = Path.Combine(Application.dataPath, _audioFolderName);
+        _audiosFolderPath = Path.Combine(Application.dataPath, "EnemyAudios");
+
+        var folderExists = EnemyAudiosFolderExists();
         
-        Directory.CreateDirectory(_audioFolderPath);
-        Logger.LogInfo($"[EnemyAudio] {_audioFolderName} folder was created.");
+        if (!folderExists)
+            Directory.CreateDirectory(_audiosFolderPath);
     }
     
-    private bool EnemyAudioFolderExists()
+    private bool EnemyAudiosFolderExists()
     {
-        _audioFolderPath = Path.Combine(Application.dataPath, _audioFolderName);
-        return Directory.Exists(_audioFolderPath);
+        return Directory.Exists(_audiosFolderPath);
     }
     
-    private string[] GetAudioFilesFromJsonList()
+    private string[] GetAudioFiles()
     {
-        if (!EnemyAudioFolderExists())
+        if (!EnemyAudiosFolderExists())
         {
-            Logger.LogError($"[EnemyAudio] {_audioFolderName} folder does not exist.");
+            Logger.LogError("[EnemyAudios] EnemyAudios folder does not exist.");
             return [];
         }
         
-        var audioFileNames = GetAllAudioFilesNamesInJson();
-        
-        var audioFiles = SupportedAudioFormats
-            .SelectMany(format => Directory.GetFiles(_audioFolderPath!, format))
+        return SupportedAudioFormats
+            .SelectMany(format => Directory.GetFiles(_audiosFolderPath!, format))
             .ToArray();
-        
-        var filteredAudioFiles = audioFiles
-            .Where(file =>
-            {
-                var fileName = Path.GetFileNameWithoutExtension(file);
-                var extension = Path.GetExtension(file).TrimStart('.').ToLowerInvariant();
-                return audioFileNames.Any(a =>
-                    a.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) &&
-                    a.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase));
-            })
-            .ToArray();
-        
-        return filteredAudioFiles;
-    }
 
-    private Audio[] GetAllAudioFilesNamesInJson()
-    {
-        _audioFolderPath = Path.Combine(Application.dataPath, _audioFolderName);
-        var jsonPath = Path.Combine(_audioFolderPath, _jsonFileName);
-        var json = File.ReadAllText(jsonPath);
-        var audiosJson = JsonConvert.DeserializeObject<AudioJson>(json);
-        
-        if (audiosJson == null || audiosJson.audioList.Length == 0)
-        {
-            Logger.LogError("[EnemyAudio] No audio files found in the JSON file.");
-            return [];
-        }
-        
-        return audiosJson.audioList;
-    }
-
-    private void CreateAudioFilesJson()
-    {
-        _audioFolderPath = Path.Combine(Application.dataPath, _audioFolderName);
-        
-        var jsonPath = Path.Combine(_audioFolderPath, _jsonFileName);
-        var jsonExists = File.Exists(jsonPath);
-
-        if (jsonExists) 
-            return;
-
-        var audioJson = new AudioJson
-        {
-            audioList = new[]
-            {
-                new Audio { Name = "Exemple1", Extension = "mp3" },
-                new Audio { Name = "Exemple2", Extension = "wav" }
-            }
-        };
-        
-        var json = JsonConvert.SerializeObject(audioJson, Formatting.Indented);
-        
-        File.WriteAllText(jsonPath, json);
-        Logger.LogInfo($"[EnemyAudio] {_jsonFileName} was created.");
-    }
-
-    private bool JsonAudioFilesExists()
-    {
-        _audioFolderPath = Path.Combine(Application.dataPath, _audioFolderName);
-        var jsonPath = Path.Combine(_audioFolderPath, _jsonFileName);
-        
-        return File.Exists(jsonPath);
-    }
-    
-    private void CreateFoldersAndJsonFiles()
-    {
-        if (!EnemyAudioFolderExists())
-            CreateEnemyAudioFolder();
-        
-        if (!JsonAudioFilesExists())
-            CreateAudioFilesJson();
     }
     #endregion
 
@@ -354,7 +281,7 @@ public class EnemyAudioBehaviour : MonoBehaviour
         
         if (component == null)
         {
-            Logger.LogError("[EnemyAudio] PhotonView component was not found.");
+            Logger.LogError("[EnemyAudios] PhotonView component was not found.");
             return null;
         }
 

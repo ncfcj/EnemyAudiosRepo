@@ -8,7 +8,7 @@ namespace EnemyAudios.Patches;
 [HarmonyPatch(typeof(PlayerAvatar), "Awake")]
 internal class PlayerAvatarPatch
 {
-    private static readonly ManualLogSource _logger = Logger.CreateLogSource("");
+    private static readonly ManualLogSource _logger = Logger.CreateLogSource("EnemyAudios");
     
     private static void Postfix(PlayerAvatar __instance)
     {
@@ -20,7 +20,7 @@ internal class PlayerAvatarPatch
         if (enemyAudioBehaviour is null)
         {
             enemyAudioBehaviour = __instance.gameObject.AddComponent<EnemyAudioBehaviour>();
-            _logger.LogInfo("[EnemyAudio] Added EnemyAudioBehaviour component to PlayerAvatar: " + __instance.playerName);
+            _logger.LogInfo("[EnemyAudios] Added EnemyAudioBehaviour component to PlayerAvatar: " + __instance.playerName);
         }
         
         var component = __instance.GetComponent<PhotonView>();
@@ -30,6 +30,6 @@ internal class PlayerAvatarPatch
         
         PlayerFinder.EnemyAudioBehaviour = enemyAudioBehaviour;
         
-        _logger.LogInfo("[EnemyAudio] Set EnemyAudioBehaviour for local PlayerAvatar: " + __instance.playerName);
+        _logger.LogInfo("[EnemyAudios] Set EnemyAudioBehaviour for local PlayerAvatar: " + __instance.playerName);
     }
 }

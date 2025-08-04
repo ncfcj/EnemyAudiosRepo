@@ -7,7 +7,7 @@ namespace EnemyAudios.Behaviours;
 public class PlayerFinder : MonoBehaviour
 {
     private static PlayerFinder? _instance;
-    private static ManualLogSource _logger = BepInEx.Logging.Logger.CreateLogSource("EnemyAudio");
+    private static ManualLogSource _logger = BepInEx.Logging.Logger.CreateLogSource("EnemyAudios");
     
     public static EnemyAudioBehaviour? EnemyAudioBehaviour { get; set; }
     

@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace EnemyAudios;
 
-[BepInPlugin("nilt0n.EnemyAudio", "EnemyAudio", "1.0")]
+[BepInPlugin("nilt0n.EnemyAudios", "EnemyAudios", "1.0")]
 public class BasePlugin : BaseUnityPlugin
 {
     internal static BasePlugin Instance { get; private set; } = null!;
@@ -26,11 +26,11 @@ public class BasePlugin : BaseUnityPlugin
         gameObject.transform.parent = null;
         gameObject.hideFlags = HideFlags.HideAndDontSave;
         
-        Logger.LogInfo("[EnemyAudio] Plugin is loaded!");
+        Logger.LogInfo("[EnemyAudios] Plugin is loaded!");
 
         SetupConfigurations();
 
-        _harmony = new Harmony("EnemyAudio");
+        _harmony = new Harmony("EnemyAudios");
         _harmony.PatchAll();
         
         EnemyDirectorStartPatch.Initialize(Config);
